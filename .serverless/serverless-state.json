@@ -1,0 +1,4354 @@
+{
+  "service": {
+    "service": "ai-levels-backend",
+    "serviceObject": {
+      "name": "ai-levels-backend"
+    },
+    "provider": {
+      "name": "aws",
+      "runtime": "python3.12",
+      "region": "ap-northeast-1",
+      "environment": {
+        "RESULTS_TABLE": "ai-levels-results",
+        "PROGRESS_TABLE": "ai-levels-progress",
+        "BEDROCK_MODEL_ID": "jp.anthropic.claude-sonnet-4-6",
+        "PASS_THRESHOLD_LV1": "30",
+        "PASS_THRESHOLD_LV2": "30",
+        "PASS_THRESHOLD_LV3": "30",
+        "PASS_THRESHOLD_LV4": "30",
+        "SPEED_T_FAST_MS": "60000",
+        "SPEED_T_MID_MS": "180000",
+        "SPEED_BONUS_FAST": "5",
+        "SPEED_BONUS_MID": "2",
+        "SPEED_PENALTY_SLOW": "0",
+        "AI_PROXY_DETECTION_ENABLED": "true",
+        "AI_PROXY_CONFIDENCE_THRESHOLD": "0.7",
+        "AI_PROXY_SHOW_TO_USER": "false"
+      },
+      "timeout": 60,
+      "iam": {
+        "role": {
+          "statements": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "dynamodb:PutItem",
+                "dynamodb:GetItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:Query"
+              ],
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ResultsTable",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::GetAtt": [
+                    "ProgressTable",
+                    "Arn"
+                  ]
+                }
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "bedrock:InvokeModel"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "aws-marketplace:ViewSubscriptions",
+                "aws-marketplace:Subscribe"
+              ],
+              "Resource": "*"
+            }
+          ]
+        }
+      },
+      "stage": "dev",
+      "versionFunctions": true,
+      "compiledCloudFormationTemplate": {
+        "AWSTemplateFormatVersion": "2010-09-09",
+        "Description": "The AWS CloudFormation template for this Serverless application",
+        "Resources": {
+          "ServerlessDeploymentBucket": {
+            "Type": "AWS::S3::Bucket",
+            "Properties": {
+              "BucketEncryption": {
+                "ServerSideEncryptionConfiguration": [
+                  {
+                    "ServerSideEncryptionByDefault": {
+                      "SSEAlgorithm": "AES256"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "ServerlessDeploymentBucketPolicy": {
+            "Type": "AWS::S3::BucketPolicy",
+            "Properties": {
+              "Bucket": {
+                "Ref": "ServerlessDeploymentBucket"
+              },
+              "PolicyDocument": {
+                "Statement": [
+                  {
+                    "Action": "s3:*",
+                    "Effect": "Deny",
+                    "Principal": "*",
+                    "Resource": [
+                      {
+                        "Fn::Join": [
+                          "",
+                          [
+                            "arn:",
+                            {
+                              "Ref": "AWS::Partition"
+                            },
+                            ":s3:::",
+                            {
+                              "Ref": "ServerlessDeploymentBucket"
+                            },
+                            "/*"
+                          ]
+                        ]
+                      },
+                      {
+                        "Fn::Join": [
+                          "",
+                          [
+                            "arn:",
+                            {
+                              "Ref": "AWS::Partition"
+                            },
+                            ":s3:::",
+                            {
+                              "Ref": "ServerlessDeploymentBucket"
+                            }
+                          ]
+                        ]
+                      }
+                    ],
+                    "Condition": {
+                      "Bool": {
+                        "aws:SecureTransport": false
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "GenerateLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/ai-levels-backend-dev-generate"
+            }
+          },
+          "GradeLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/ai-levels-backend-dev-grade"
+            }
+          },
+          "CompleteLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/ai-levels-backend-dev-complete"
+            }
+          },
+          "ServerTimeLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/ai-levels-backend-dev-serverTime"
+            }
+          },
+          "StartQuestionLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/ai-levels-backend-dev-startQuestion"
+            }
+          },
+          "GateLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/ai-levels-backend-dev-gate"
+            }
+          },
+          "Lv2GenerateLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/ai-levels-backend-dev-lv2Generate"
+            }
+          },
+          "Lv2GradeLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/ai-levels-backend-dev-lv2Grade"
+            }
+          },
+          "Lv2CompleteLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/ai-levels-backend-dev-lv2Complete"
+            }
+          },
+          "Lv3GenerateLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/ai-levels-backend-dev-lv3Generate"
+            }
+          },
+          "Lv3GradeLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/ai-levels-backend-dev-lv3Grade"
+            }
+          },
+          "Lv3CompleteLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/ai-levels-backend-dev-lv3Complete"
+            }
+          },
+          "Lv4GenerateLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/ai-levels-backend-dev-lv4Generate"
+            }
+          },
+          "Lv4GradeLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/ai-levels-backend-dev-lv4Grade"
+            }
+          },
+          "Lv4CompleteLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/ai-levels-backend-dev-lv4Complete"
+            }
+          },
+          "IamRoleLambdaExecution": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+              "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                    "Effect": "Allow",
+                    "Principal": {
+                      "Service": [
+                        "lambda.amazonaws.com"
+                      ]
+                    },
+                    "Action": [
+                      "sts:AssumeRole"
+                    ]
+                  }
+                ]
+              },
+              "Policies": [
+                {
+                  "PolicyName": {
+                    "Fn::Join": [
+                      "-",
+                      [
+                        "ai-levels-backend",
+                        "dev",
+                        "lambda"
+                      ]
+                    ]
+                  },
+                  "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "logs:CreateLogStream",
+                          "logs:CreateLogGroup",
+                          "logs:TagResource"
+                        ],
+                        "Resource": [
+                          {
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/ai-levels-backend-dev*:*"
+                          }
+                        ]
+                      },
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "logs:PutLogEvents"
+                        ],
+                        "Resource": [
+                          {
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/ai-levels-backend-dev*:*:*"
+                          }
+                        ]
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][0]"
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][1]"
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][2]"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "Path": "/",
+              "RoleName": {
+                "Fn::Join": [
+                  "-",
+                  [
+                    "ai-levels-backend",
+                    "dev",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    "lambdaRole"
+                  ]
+                ]
+              }
+            }
+          },
+          "GenerateLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/ai-levels-backend/dev/1773147329574-2026-03-10T12:55:29.574Z/ai-levels-backend.zip"
+              },
+              "Handler": "backend/handlers/generate_handler.handler",
+              "Runtime": "python3.12",
+              "FunctionName": "ai-levels-backend-dev-generate",
+              "MemorySize": 1024,
+              "Timeout": 60,
+              "Environment": {
+                "Variables": {
+                  "RESULTS_TABLE": "ai-levels-results",
+                  "PROGRESS_TABLE": "ai-levels-progress",
+                  "BEDROCK_MODEL_ID": "jp.anthropic.claude-sonnet-4-6",
+                  "PASS_THRESHOLD_LV1": "30",
+                  "PASS_THRESHOLD_LV2": "30",
+                  "PASS_THRESHOLD_LV3": "30",
+                  "PASS_THRESHOLD_LV4": "30",
+                  "SPEED_T_FAST_MS": "60000",
+                  "SPEED_T_MID_MS": "180000",
+                  "SPEED_BONUS_FAST": "5",
+                  "SPEED_BONUS_MID": "2",
+                  "SPEED_PENALTY_SLOW": "0",
+                  "AI_PROXY_DETECTION_ENABLED": "true",
+                  "AI_PROXY_CONFIDENCE_THRESHOLD": "0.7",
+                  "AI_PROXY_SHOW_TO_USER": "false"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "GenerateLogGroup"
+            ]
+          },
+          "GradeLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/ai-levels-backend/dev/1773147329574-2026-03-10T12:55:29.574Z/ai-levels-backend.zip"
+              },
+              "Handler": "backend/handlers/grade_handler.handler",
+              "Runtime": "python3.12",
+              "FunctionName": "ai-levels-backend-dev-grade",
+              "MemorySize": 1024,
+              "Timeout": 60,
+              "Environment": {
+                "Variables": {
+                  "RESULTS_TABLE": "ai-levels-results",
+                  "PROGRESS_TABLE": "ai-levels-progress",
+                  "BEDROCK_MODEL_ID": "jp.anthropic.claude-sonnet-4-6",
+                  "PASS_THRESHOLD_LV1": "30",
+                  "PASS_THRESHOLD_LV2": "30",
+                  "PASS_THRESHOLD_LV3": "30",
+                  "PASS_THRESHOLD_LV4": "30",
+                  "SPEED_T_FAST_MS": "60000",
+                  "SPEED_T_MID_MS": "180000",
+                  "SPEED_BONUS_FAST": "5",
+                  "SPEED_BONUS_MID": "2",
+                  "SPEED_PENALTY_SLOW": "0",
+                  "AI_PROXY_DETECTION_ENABLED": "true",
+                  "AI_PROXY_CONFIDENCE_THRESHOLD": "0.7",
+                  "AI_PROXY_SHOW_TO_USER": "false"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "GradeLogGroup"
+            ]
+          },
+          "CompleteLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/ai-levels-backend/dev/1773147329574-2026-03-10T12:55:29.574Z/ai-levels-backend.zip"
+              },
+              "Handler": "backend/handlers/complete_handler.handler",
+              "Runtime": "python3.12",
+              "FunctionName": "ai-levels-backend-dev-complete",
+              "MemorySize": 1024,
+              "Timeout": 60,
+              "Environment": {
+                "Variables": {
+                  "RESULTS_TABLE": "ai-levels-results",
+                  "PROGRESS_TABLE": "ai-levels-progress",
+                  "BEDROCK_MODEL_ID": "jp.anthropic.claude-sonnet-4-6",
+                  "PASS_THRESHOLD_LV1": "30",
+                  "PASS_THRESHOLD_LV2": "30",
+                  "PASS_THRESHOLD_LV3": "30",
+                  "PASS_THRESHOLD_LV4": "30",
+                  "SPEED_T_FAST_MS": "60000",
+                  "SPEED_T_MID_MS": "180000",
+                  "SPEED_BONUS_FAST": "5",
+                  "SPEED_BONUS_MID": "2",
+                  "SPEED_PENALTY_SLOW": "0",
+                  "AI_PROXY_DETECTION_ENABLED": "true",
+                  "AI_PROXY_CONFIDENCE_THRESHOLD": "0.7",
+                  "AI_PROXY_SHOW_TO_USER": "false"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "CompleteLogGroup"
+            ]
+          },
+          "ServerTimeLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/ai-levels-backend/dev/1773147329574-2026-03-10T12:55:29.574Z/ai-levels-backend.zip"
+              },
+              "Handler": "backend/handlers/timer_handler.server_time_handler",
+              "Runtime": "python3.12",
+              "FunctionName": "ai-levels-backend-dev-serverTime",
+              "MemorySize": 1024,
+              "Timeout": 60,
+              "Environment": {
+                "Variables": {
+                  "RESULTS_TABLE": "ai-levels-results",
+                  "PROGRESS_TABLE": "ai-levels-progress",
+                  "BEDROCK_MODEL_ID": "jp.anthropic.claude-sonnet-4-6",
+                  "PASS_THRESHOLD_LV1": "30",
+                  "PASS_THRESHOLD_LV2": "30",
+                  "PASS_THRESHOLD_LV3": "30",
+                  "PASS_THRESHOLD_LV4": "30",
+                  "SPEED_T_FAST_MS": "60000",
+                  "SPEED_T_MID_MS": "180000",
+                  "SPEED_BONUS_FAST": "5",
+                  "SPEED_BONUS_MID": "2",
+                  "SPEED_PENALTY_SLOW": "0",
+                  "AI_PROXY_DETECTION_ENABLED": "true",
+                  "AI_PROXY_CONFIDENCE_THRESHOLD": "0.7",
+                  "AI_PROXY_SHOW_TO_USER": "false"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "ServerTimeLogGroup"
+            ]
+          },
+          "StartQuestionLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/ai-levels-backend/dev/1773147329574-2026-03-10T12:55:29.574Z/ai-levels-backend.zip"
+              },
+              "Handler": "backend/handlers/timer_handler.start_question_handler",
+              "Runtime": "python3.12",
+              "FunctionName": "ai-levels-backend-dev-startQuestion",
+              "MemorySize": 1024,
+              "Timeout": 60,
+              "Environment": {
+                "Variables": {
+                  "RESULTS_TABLE": "ai-levels-results",
+                  "PROGRESS_TABLE": "ai-levels-progress",
+                  "BEDROCK_MODEL_ID": "jp.anthropic.claude-sonnet-4-6",
+                  "PASS_THRESHOLD_LV1": "30",
+                  "PASS_THRESHOLD_LV2": "30",
+                  "PASS_THRESHOLD_LV3": "30",
+                  "PASS_THRESHOLD_LV4": "30",
+                  "SPEED_T_FAST_MS": "60000",
+                  "SPEED_T_MID_MS": "180000",
+                  "SPEED_BONUS_FAST": "5",
+                  "SPEED_BONUS_MID": "2",
+                  "SPEED_PENALTY_SLOW": "0",
+                  "AI_PROXY_DETECTION_ENABLED": "true",
+                  "AI_PROXY_CONFIDENCE_THRESHOLD": "0.7",
+                  "AI_PROXY_SHOW_TO_USER": "false"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "StartQuestionLogGroup"
+            ]
+          },
+          "GateLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/ai-levels-backend/dev/1773147329574-2026-03-10T12:55:29.574Z/ai-levels-backend.zip"
+              },
+              "Handler": "backend/handlers/gate_handler.handler",
+              "Runtime": "python3.12",
+              "FunctionName": "ai-levels-backend-dev-gate",
+              "MemorySize": 1024,
+              "Timeout": 60,
+              "Environment": {
+                "Variables": {
+                  "RESULTS_TABLE": "ai-levels-results",
+                  "PROGRESS_TABLE": "ai-levels-progress",
+                  "BEDROCK_MODEL_ID": "jp.anthropic.claude-sonnet-4-6",
+                  "PASS_THRESHOLD_LV1": "30",
+                  "PASS_THRESHOLD_LV2": "30",
+                  "PASS_THRESHOLD_LV3": "30",
+                  "PASS_THRESHOLD_LV4": "30",
+                  "SPEED_T_FAST_MS": "60000",
+                  "SPEED_T_MID_MS": "180000",
+                  "SPEED_BONUS_FAST": "5",
+                  "SPEED_BONUS_MID": "2",
+                  "SPEED_PENALTY_SLOW": "0",
+                  "AI_PROXY_DETECTION_ENABLED": "true",
+                  "AI_PROXY_CONFIDENCE_THRESHOLD": "0.7",
+                  "AI_PROXY_SHOW_TO_USER": "false"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "GateLogGroup"
+            ]
+          },
+          "Lv2GenerateLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/ai-levels-backend/dev/1773147329574-2026-03-10T12:55:29.574Z/ai-levels-backend.zip"
+              },
+              "Handler": "backend/handlers/lv2_generate_handler.handler",
+              "Runtime": "python3.12",
+              "FunctionName": "ai-levels-backend-dev-lv2Generate",
+              "MemorySize": 1024,
+              "Timeout": 60,
+              "Environment": {
+                "Variables": {
+                  "RESULTS_TABLE": "ai-levels-results",
+                  "PROGRESS_TABLE": "ai-levels-progress",
+                  "BEDROCK_MODEL_ID": "jp.anthropic.claude-sonnet-4-6",
+                  "PASS_THRESHOLD_LV1": "30",
+                  "PASS_THRESHOLD_LV2": "30",
+                  "PASS_THRESHOLD_LV3": "30",
+                  "PASS_THRESHOLD_LV4": "30",
+                  "SPEED_T_FAST_MS": "60000",
+                  "SPEED_T_MID_MS": "180000",
+                  "SPEED_BONUS_FAST": "5",
+                  "SPEED_BONUS_MID": "2",
+                  "SPEED_PENALTY_SLOW": "0",
+                  "AI_PROXY_DETECTION_ENABLED": "true",
+                  "AI_PROXY_CONFIDENCE_THRESHOLD": "0.7",
+                  "AI_PROXY_SHOW_TO_USER": "false"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "Lv2GenerateLogGroup"
+            ]
+          },
+          "Lv2GradeLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/ai-levels-backend/dev/1773147329574-2026-03-10T12:55:29.574Z/ai-levels-backend.zip"
+              },
+              "Handler": "backend/handlers/lv2_grade_handler.handler",
+              "Runtime": "python3.12",
+              "FunctionName": "ai-levels-backend-dev-lv2Grade",
+              "MemorySize": 1024,
+              "Timeout": 60,
+              "Environment": {
+                "Variables": {
+                  "RESULTS_TABLE": "ai-levels-results",
+                  "PROGRESS_TABLE": "ai-levels-progress",
+                  "BEDROCK_MODEL_ID": "jp.anthropic.claude-sonnet-4-6",
+                  "PASS_THRESHOLD_LV1": "30",
+                  "PASS_THRESHOLD_LV2": "30",
+                  "PASS_THRESHOLD_LV3": "30",
+                  "PASS_THRESHOLD_LV4": "30",
+                  "SPEED_T_FAST_MS": "60000",
+                  "SPEED_T_MID_MS": "180000",
+                  "SPEED_BONUS_FAST": "5",
+                  "SPEED_BONUS_MID": "2",
+                  "SPEED_PENALTY_SLOW": "0",
+                  "AI_PROXY_DETECTION_ENABLED": "true",
+                  "AI_PROXY_CONFIDENCE_THRESHOLD": "0.7",
+                  "AI_PROXY_SHOW_TO_USER": "false"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "Lv2GradeLogGroup"
+            ]
+          },
+          "Lv2CompleteLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/ai-levels-backend/dev/1773147329574-2026-03-10T12:55:29.574Z/ai-levels-backend.zip"
+              },
+              "Handler": "backend/handlers/lv2_complete_handler.handler",
+              "Runtime": "python3.12",
+              "FunctionName": "ai-levels-backend-dev-lv2Complete",
+              "MemorySize": 1024,
+              "Timeout": 60,
+              "Environment": {
+                "Variables": {
+                  "RESULTS_TABLE": "ai-levels-results",
+                  "PROGRESS_TABLE": "ai-levels-progress",
+                  "BEDROCK_MODEL_ID": "jp.anthropic.claude-sonnet-4-6",
+                  "PASS_THRESHOLD_LV1": "30",
+                  "PASS_THRESHOLD_LV2": "30",
+                  "PASS_THRESHOLD_LV3": "30",
+                  "PASS_THRESHOLD_LV4": "30",
+                  "SPEED_T_FAST_MS": "60000",
+                  "SPEED_T_MID_MS": "180000",
+                  "SPEED_BONUS_FAST": "5",
+                  "SPEED_BONUS_MID": "2",
+                  "SPEED_PENALTY_SLOW": "0",
+                  "AI_PROXY_DETECTION_ENABLED": "true",
+                  "AI_PROXY_CONFIDENCE_THRESHOLD": "0.7",
+                  "AI_PROXY_SHOW_TO_USER": "false"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "Lv2CompleteLogGroup"
+            ]
+          },
+          "Lv3GenerateLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/ai-levels-backend/dev/1773147329574-2026-03-10T12:55:29.574Z/ai-levels-backend.zip"
+              },
+              "Handler": "backend/handlers/lv3_generate_handler.handler",
+              "Runtime": "python3.12",
+              "FunctionName": "ai-levels-backend-dev-lv3Generate",
+              "MemorySize": 1024,
+              "Timeout": 60,
+              "Environment": {
+                "Variables": {
+                  "RESULTS_TABLE": "ai-levels-results",
+                  "PROGRESS_TABLE": "ai-levels-progress",
+                  "BEDROCK_MODEL_ID": "jp.anthropic.claude-sonnet-4-6",
+                  "PASS_THRESHOLD_LV1": "30",
+                  "PASS_THRESHOLD_LV2": "30",
+                  "PASS_THRESHOLD_LV3": "30",
+                  "PASS_THRESHOLD_LV4": "30",
+                  "SPEED_T_FAST_MS": "60000",
+                  "SPEED_T_MID_MS": "180000",
+                  "SPEED_BONUS_FAST": "5",
+                  "SPEED_BONUS_MID": "2",
+                  "SPEED_PENALTY_SLOW": "0",
+                  "AI_PROXY_DETECTION_ENABLED": "true",
+                  "AI_PROXY_CONFIDENCE_THRESHOLD": "0.7",
+                  "AI_PROXY_SHOW_TO_USER": "false"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "Lv3GenerateLogGroup"
+            ]
+          },
+          "Lv3GradeLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/ai-levels-backend/dev/1773147329574-2026-03-10T12:55:29.574Z/ai-levels-backend.zip"
+              },
+              "Handler": "backend/handlers/lv3_grade_handler.handler",
+              "Runtime": "python3.12",
+              "FunctionName": "ai-levels-backend-dev-lv3Grade",
+              "MemorySize": 1024,
+              "Timeout": 60,
+              "Environment": {
+                "Variables": {
+                  "RESULTS_TABLE": "ai-levels-results",
+                  "PROGRESS_TABLE": "ai-levels-progress",
+                  "BEDROCK_MODEL_ID": "jp.anthropic.claude-sonnet-4-6",
+                  "PASS_THRESHOLD_LV1": "30",
+                  "PASS_THRESHOLD_LV2": "30",
+                  "PASS_THRESHOLD_LV3": "30",
+                  "PASS_THRESHOLD_LV4": "30",
+                  "SPEED_T_FAST_MS": "60000",
+                  "SPEED_T_MID_MS": "180000",
+                  "SPEED_BONUS_FAST": "5",
+                  "SPEED_BONUS_MID": "2",
+                  "SPEED_PENALTY_SLOW": "0",
+                  "AI_PROXY_DETECTION_ENABLED": "true",
+                  "AI_PROXY_CONFIDENCE_THRESHOLD": "0.7",
+                  "AI_PROXY_SHOW_TO_USER": "false"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "Lv3GradeLogGroup"
+            ]
+          },
+          "Lv3CompleteLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/ai-levels-backend/dev/1773147329574-2026-03-10T12:55:29.574Z/ai-levels-backend.zip"
+              },
+              "Handler": "backend/handlers/lv3_complete_handler.handler",
+              "Runtime": "python3.12",
+              "FunctionName": "ai-levels-backend-dev-lv3Complete",
+              "MemorySize": 1024,
+              "Timeout": 60,
+              "Environment": {
+                "Variables": {
+                  "RESULTS_TABLE": "ai-levels-results",
+                  "PROGRESS_TABLE": "ai-levels-progress",
+                  "BEDROCK_MODEL_ID": "jp.anthropic.claude-sonnet-4-6",
+                  "PASS_THRESHOLD_LV1": "30",
+                  "PASS_THRESHOLD_LV2": "30",
+                  "PASS_THRESHOLD_LV3": "30",
+                  "PASS_THRESHOLD_LV4": "30",
+                  "SPEED_T_FAST_MS": "60000",
+                  "SPEED_T_MID_MS": "180000",
+                  "SPEED_BONUS_FAST": "5",
+                  "SPEED_BONUS_MID": "2",
+                  "SPEED_PENALTY_SLOW": "0",
+                  "AI_PROXY_DETECTION_ENABLED": "true",
+                  "AI_PROXY_CONFIDENCE_THRESHOLD": "0.7",
+                  "AI_PROXY_SHOW_TO_USER": "false"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "Lv3CompleteLogGroup"
+            ]
+          },
+          "Lv4GenerateLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/ai-levels-backend/dev/1773147329574-2026-03-10T12:55:29.574Z/ai-levels-backend.zip"
+              },
+              "Handler": "backend/handlers/lv4_generate_handler.handler",
+              "Runtime": "python3.12",
+              "FunctionName": "ai-levels-backend-dev-lv4Generate",
+              "MemorySize": 1024,
+              "Timeout": 60,
+              "Environment": {
+                "Variables": {
+                  "RESULTS_TABLE": "ai-levels-results",
+                  "PROGRESS_TABLE": "ai-levels-progress",
+                  "BEDROCK_MODEL_ID": "jp.anthropic.claude-sonnet-4-6",
+                  "PASS_THRESHOLD_LV1": "30",
+                  "PASS_THRESHOLD_LV2": "30",
+                  "PASS_THRESHOLD_LV3": "30",
+                  "PASS_THRESHOLD_LV4": "30",
+                  "SPEED_T_FAST_MS": "60000",
+                  "SPEED_T_MID_MS": "180000",
+                  "SPEED_BONUS_FAST": "5",
+                  "SPEED_BONUS_MID": "2",
+                  "SPEED_PENALTY_SLOW": "0",
+                  "AI_PROXY_DETECTION_ENABLED": "true",
+                  "AI_PROXY_CONFIDENCE_THRESHOLD": "0.7",
+                  "AI_PROXY_SHOW_TO_USER": "false"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "Lv4GenerateLogGroup"
+            ]
+          },
+          "Lv4GradeLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/ai-levels-backend/dev/1773147329574-2026-03-10T12:55:29.574Z/ai-levels-backend.zip"
+              },
+              "Handler": "backend/handlers/lv4_grade_handler.handler",
+              "Runtime": "python3.12",
+              "FunctionName": "ai-levels-backend-dev-lv4Grade",
+              "MemorySize": 1024,
+              "Timeout": 60,
+              "Environment": {
+                "Variables": {
+                  "RESULTS_TABLE": "ai-levels-results",
+                  "PROGRESS_TABLE": "ai-levels-progress",
+                  "BEDROCK_MODEL_ID": "jp.anthropic.claude-sonnet-4-6",
+                  "PASS_THRESHOLD_LV1": "30",
+                  "PASS_THRESHOLD_LV2": "30",
+                  "PASS_THRESHOLD_LV3": "30",
+                  "PASS_THRESHOLD_LV4": "30",
+                  "SPEED_T_FAST_MS": "60000",
+                  "SPEED_T_MID_MS": "180000",
+                  "SPEED_BONUS_FAST": "5",
+                  "SPEED_BONUS_MID": "2",
+                  "SPEED_PENALTY_SLOW": "0",
+                  "AI_PROXY_DETECTION_ENABLED": "true",
+                  "AI_PROXY_CONFIDENCE_THRESHOLD": "0.7",
+                  "AI_PROXY_SHOW_TO_USER": "false"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "Lv4GradeLogGroup"
+            ]
+          },
+          "Lv4CompleteLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/ai-levels-backend/dev/1773147329574-2026-03-10T12:55:29.574Z/ai-levels-backend.zip"
+              },
+              "Handler": "backend/handlers/lv4_complete_handler.handler",
+              "Runtime": "python3.12",
+              "FunctionName": "ai-levels-backend-dev-lv4Complete",
+              "MemorySize": 1024,
+              "Timeout": 60,
+              "Environment": {
+                "Variables": {
+                  "RESULTS_TABLE": "ai-levels-results",
+                  "PROGRESS_TABLE": "ai-levels-progress",
+                  "BEDROCK_MODEL_ID": "jp.anthropic.claude-sonnet-4-6",
+                  "PASS_THRESHOLD_LV1": "30",
+                  "PASS_THRESHOLD_LV2": "30",
+                  "PASS_THRESHOLD_LV3": "30",
+                  "PASS_THRESHOLD_LV4": "30",
+                  "SPEED_T_FAST_MS": "60000",
+                  "SPEED_T_MID_MS": "180000",
+                  "SPEED_BONUS_FAST": "5",
+                  "SPEED_BONUS_MID": "2",
+                  "SPEED_PENALTY_SLOW": "0",
+                  "AI_PROXY_DETECTION_ENABLED": "true",
+                  "AI_PROXY_CONFIDENCE_THRESHOLD": "0.7",
+                  "AI_PROXY_SHOW_TO_USER": "false"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "Lv4CompleteLogGroup"
+            ]
+          },
+          "GenerateLambdaVersionNQ2itjMoE9kzXGpvKMVNI7fZktrYIVBZjERMJfIQ": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "GenerateLambdaFunction"
+              },
+              "CodeSha256": "10nH7U4dQQ90CNzuKMFoou6u0QamGt4JoUKPG00PSZY="
+            }
+          },
+          "GradeLambdaVersionY45OBpCJooO8CoIVbIOAM1FqNZNcUvUvtoTUIiOsk0": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "GradeLambdaFunction"
+              },
+              "CodeSha256": "10nH7U4dQQ90CNzuKMFoou6u0QamGt4JoUKPG00PSZY="
+            }
+          },
+          "CompleteLambdaVersionqTkpFaepzZsJpw6JAbptRZeOq3x47SHMvdF5Yd5q3P4": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "CompleteLambdaFunction"
+              },
+              "CodeSha256": "10nH7U4dQQ90CNzuKMFoou6u0QamGt4JoUKPG00PSZY="
+            }
+          },
+          "ServerTimeLambdaVersion3HRU71646hyfnH6hlEPvBW5PZdnE80siESERzvY": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "ServerTimeLambdaFunction"
+              },
+              "CodeSha256": "10nH7U4dQQ90CNzuKMFoou6u0QamGt4JoUKPG00PSZY="
+            }
+          },
+          "StartQuestionLambdaVersionAaDFdS1qrHfFBRtOICn0L7OpevghYOn05RtWQBtUH4": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "StartQuestionLambdaFunction"
+              },
+              "CodeSha256": "10nH7U4dQQ90CNzuKMFoou6u0QamGt4JoUKPG00PSZY="
+            }
+          },
+          "GateLambdaVersion8mHugV9SsJBOmbQpIIgCZyV4pxeWhK473mHw2I4STN0": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "GateLambdaFunction"
+              },
+              "CodeSha256": "10nH7U4dQQ90CNzuKMFoou6u0QamGt4JoUKPG00PSZY="
+            }
+          },
+          "Lv2GenerateLambdaVersion2rb2XFzZ7rv9sf9lmF939jjLXdovNFsiWQsGP121c": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "Lv2GenerateLambdaFunction"
+              },
+              "CodeSha256": "10nH7U4dQQ90CNzuKMFoou6u0QamGt4JoUKPG00PSZY="
+            }
+          },
+          "Lv2GradeLambdaVersionb7gMyYsCwUQkFxoEaZrncky8ir4bJFz0S6eQ3kbnE": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "Lv2GradeLambdaFunction"
+              },
+              "CodeSha256": "10nH7U4dQQ90CNzuKMFoou6u0QamGt4JoUKPG00PSZY="
+            }
+          },
+          "Lv2CompleteLambdaVersionZCPA85JpOLTCkzsFNr0sV1DiIpZwHEa0UyoYw0FuVw": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "Lv2CompleteLambdaFunction"
+              },
+              "CodeSha256": "10nH7U4dQQ90CNzuKMFoou6u0QamGt4JoUKPG00PSZY="
+            }
+          },
+          "Lv3GenerateLambdaVersionswLTVKjTqNhi1FaKiezobAYbrDQiAUGJNxwGFlMAug": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "Lv3GenerateLambdaFunction"
+              },
+              "CodeSha256": "10nH7U4dQQ90CNzuKMFoou6u0QamGt4JoUKPG00PSZY="
+            }
+          },
+          "Lv3GradeLambdaVersionUoc0ZJS58s2hVoPcZkzzAt5R3tHmIeMvOh0b3DQwlY": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "Lv3GradeLambdaFunction"
+              },
+              "CodeSha256": "10nH7U4dQQ90CNzuKMFoou6u0QamGt4JoUKPG00PSZY="
+            }
+          },
+          "Lv3CompleteLambdaVersionIvvL925sGyJkCP4xrvN4c3Jk2mc0alN3Ulw6ji7t9AQ": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "Lv3CompleteLambdaFunction"
+              },
+              "CodeSha256": "10nH7U4dQQ90CNzuKMFoou6u0QamGt4JoUKPG00PSZY="
+            }
+          },
+          "Lv4GenerateLambdaVersiong0MNsCE0ipUiucLnE1JmYNpSr43ihXy8etwujkU5k": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "Lv4GenerateLambdaFunction"
+              },
+              "CodeSha256": "10nH7U4dQQ90CNzuKMFoou6u0QamGt4JoUKPG00PSZY="
+            }
+          },
+          "Lv4GradeLambdaVersionUNUnV1PwgzNo6SDmRU10l4w4LzOMH1oLYdJl2PCaw": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "Lv4GradeLambdaFunction"
+              },
+              "CodeSha256": "10nH7U4dQQ90CNzuKMFoou6u0QamGt4JoUKPG00PSZY="
+            }
+          },
+          "Lv4CompleteLambdaVersionRDBNANp29llvQIGPuybR6Y4U5VzgGnCuSOiB9lsMxk": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "Lv4CompleteLambdaFunction"
+              },
+              "CodeSha256": "10nH7U4dQQ90CNzuKMFoou6u0QamGt4JoUKPG00PSZY="
+            }
+          },
+          "ApiGatewayRestApi": {
+            "Type": "AWS::ApiGateway::RestApi",
+            "Properties": {
+              "Name": "dev-ai-levels-backend",
+              "EndpointConfiguration": {
+                "Types": [
+                  "EDGE"
+                ]
+              },
+              "Policy": ""
+            }
+          },
+          "ApiGatewayResourceLv1": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Fn::GetAtt": [
+                  "ApiGatewayRestApi",
+                  "RootResourceId"
+                ]
+              },
+              "PathPart": "lv1",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceLv1Generate": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceLv1"
+              },
+              "PathPart": "generate",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceLv1Grade": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceLv1"
+              },
+              "PathPart": "grade",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceLv1Complete": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceLv1"
+              },
+              "PathPart": "complete",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceLv1ServerDashtime": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceLv1"
+              },
+              "PathPart": "server-time",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceLv1StartDashquestion": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceLv1"
+              },
+              "PathPart": "start-question",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceLevels": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Fn::GetAtt": [
+                  "ApiGatewayRestApi",
+                  "RootResourceId"
+                ]
+              },
+              "PathPart": "levels",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceLevelsStatus": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceLevels"
+              },
+              "PathPart": "status",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceLv2": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Fn::GetAtt": [
+                  "ApiGatewayRestApi",
+                  "RootResourceId"
+                ]
+              },
+              "PathPart": "lv2",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceLv2Generate": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceLv2"
+              },
+              "PathPart": "generate",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceLv2Grade": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceLv2"
+              },
+              "PathPart": "grade",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceLv2Complete": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceLv2"
+              },
+              "PathPart": "complete",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceLv3": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Fn::GetAtt": [
+                  "ApiGatewayRestApi",
+                  "RootResourceId"
+                ]
+              },
+              "PathPart": "lv3",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceLv3Generate": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceLv3"
+              },
+              "PathPart": "generate",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceLv3Grade": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceLv3"
+              },
+              "PathPart": "grade",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceLv3Complete": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceLv3"
+              },
+              "PathPart": "complete",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceLv4": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Fn::GetAtt": [
+                  "ApiGatewayRestApi",
+                  "RootResourceId"
+                ]
+              },
+              "PathPart": "lv4",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceLv4Generate": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceLv4"
+              },
+              "PathPart": "generate",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceLv4Grade": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceLv4"
+              },
+              "PathPart": "grade",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceLv4Complete": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceLv4"
+              },
+              "PathPart": "complete",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodLv1GenerateOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,POST'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": ""
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv1Generate"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodLv1GradeOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,POST'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": ""
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv1Grade"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodLv1CompleteOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,POST'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": ""
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv1Complete"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodLv1ServerDashtimeOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": ""
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv1ServerDashtime"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodLv1StartDashquestionOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,POST'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": ""
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv1StartDashquestion"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodLevelsStatusOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,GET'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": ""
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLevelsStatus"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodLv2GenerateOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,POST'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": ""
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv2Generate"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodLv2GradeOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,POST'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": ""
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv2Grade"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodLv2CompleteOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,POST'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": ""
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv2Complete"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodLv3GenerateOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,POST'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": ""
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv3Generate"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodLv3GradeOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,POST'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": ""
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv3Grade"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodLv3CompleteOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,POST'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": ""
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv3Complete"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodLv4GenerateOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,POST'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": ""
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv4Generate"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodLv4GradeOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,POST'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": ""
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv4Grade"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodLv4CompleteOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,POST'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": ""
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv4Complete"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodLv1GeneratePost": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "POST",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv1Generate"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "NONE",
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "GenerateLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "GenerateLambdaPermissionApiGateway"
+            ]
+          },
+          "ApiGatewayMethodLv1GradePost": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "POST",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv1Grade"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "NONE",
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "GradeLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "GradeLambdaPermissionApiGateway"
+            ]
+          },
+          "ApiGatewayMethodLv1CompletePost": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "POST",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv1Complete"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "NONE",
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "CompleteLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "CompleteLambdaPermissionApiGateway"
+            ]
+          },
+          "ApiGatewayMethodLv1ServerDashtimeGet": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "GET",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv1ServerDashtime"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "NONE",
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "ServerTimeLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "ServerTimeLambdaPermissionApiGateway"
+            ]
+          },
+          "ApiGatewayMethodLv1StartDashquestionPost": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "POST",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv1StartDashquestion"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "NONE",
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "StartQuestionLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "StartQuestionLambdaPermissionApiGateway"
+            ]
+          },
+          "ApiGatewayMethodLevelsStatusGet": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "GET",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLevelsStatus"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "NONE",
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "GateLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "GateLambdaPermissionApiGateway"
+            ]
+          },
+          "ApiGatewayMethodLv2GeneratePost": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "POST",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv2Generate"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "NONE",
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "Lv2GenerateLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "Lv2GenerateLambdaPermissionApiGateway"
+            ]
+          },
+          "ApiGatewayMethodLv2GradePost": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "POST",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv2Grade"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "NONE",
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "Lv2GradeLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "Lv2GradeLambdaPermissionApiGateway"
+            ]
+          },
+          "ApiGatewayMethodLv2CompletePost": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "POST",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv2Complete"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "NONE",
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "Lv2CompleteLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "Lv2CompleteLambdaPermissionApiGateway"
+            ]
+          },
+          "ApiGatewayMethodLv3GeneratePost": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "POST",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv3Generate"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "NONE",
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "Lv3GenerateLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "Lv3GenerateLambdaPermissionApiGateway"
+            ]
+          },
+          "ApiGatewayMethodLv3GradePost": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "POST",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv3Grade"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "NONE",
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "Lv3GradeLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "Lv3GradeLambdaPermissionApiGateway"
+            ]
+          },
+          "ApiGatewayMethodLv3CompletePost": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "POST",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv3Complete"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "NONE",
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "Lv3CompleteLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "Lv3CompleteLambdaPermissionApiGateway"
+            ]
+          },
+          "ApiGatewayMethodLv4GeneratePost": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "POST",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv4Generate"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "NONE",
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "Lv4GenerateLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "Lv4GenerateLambdaPermissionApiGateway"
+            ]
+          },
+          "ApiGatewayMethodLv4GradePost": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "POST",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv4Grade"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "NONE",
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "Lv4GradeLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "Lv4GradeLambdaPermissionApiGateway"
+            ]
+          },
+          "ApiGatewayMethodLv4CompletePost": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "POST",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceLv4Complete"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "NONE",
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "Lv4CompleteLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "Lv4CompleteLambdaPermissionApiGateway"
+            ]
+          },
+          "ApiGatewayDeployment1773147320441": {
+            "Type": "AWS::ApiGateway::Deployment",
+            "Properties": {
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "StageName": "dev"
+            },
+            "DependsOn": [
+              "ApiGatewayMethodLv1GenerateOptions",
+              "ApiGatewayMethodLv1GradeOptions",
+              "ApiGatewayMethodLv1CompleteOptions",
+              "ApiGatewayMethodLv1ServerDashtimeOptions",
+              "ApiGatewayMethodLv1StartDashquestionOptions",
+              "ApiGatewayMethodLevelsStatusOptions",
+              "ApiGatewayMethodLv2GenerateOptions",
+              "ApiGatewayMethodLv2GradeOptions",
+              "ApiGatewayMethodLv2CompleteOptions",
+              "ApiGatewayMethodLv3GenerateOptions",
+              "ApiGatewayMethodLv3GradeOptions",
+              "ApiGatewayMethodLv3CompleteOptions",
+              "ApiGatewayMethodLv4GenerateOptions",
+              "ApiGatewayMethodLv4GradeOptions",
+              "ApiGatewayMethodLv4CompleteOptions",
+              "ApiGatewayMethodLv1GeneratePost",
+              "ApiGatewayMethodLv1GradePost",
+              "ApiGatewayMethodLv1CompletePost",
+              "ApiGatewayMethodLv1ServerDashtimeGet",
+              "ApiGatewayMethodLv1StartDashquestionPost",
+              "ApiGatewayMethodLevelsStatusGet",
+              "ApiGatewayMethodLv2GeneratePost",
+              "ApiGatewayMethodLv2GradePost",
+              "ApiGatewayMethodLv2CompletePost",
+              "ApiGatewayMethodLv3GeneratePost",
+              "ApiGatewayMethodLv3GradePost",
+              "ApiGatewayMethodLv3CompletePost",
+              "ApiGatewayMethodLv4GeneratePost",
+              "ApiGatewayMethodLv4GradePost",
+              "ApiGatewayMethodLv4CompletePost"
+            ]
+          },
+          "GenerateLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "GenerateLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "GradeLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "GradeLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "CompleteLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "CompleteLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "ServerTimeLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "ServerTimeLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "StartQuestionLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "StartQuestionLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "GateLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "GateLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "Lv2GenerateLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "Lv2GenerateLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "Lv2GradeLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "Lv2GradeLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "Lv2CompleteLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "Lv2CompleteLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "Lv3GenerateLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "Lv3GenerateLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "Lv3GradeLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "Lv3GradeLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "Lv3CompleteLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "Lv3CompleteLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "Lv4GenerateLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "Lv4GenerateLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "Lv4GradeLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "Lv4GradeLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "Lv4CompleteLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "Lv4CompleteLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "GatewayResponseDefault4XX": {
+            "Type": "AWS::ApiGateway::GatewayResponse",
+            "Properties": {
+              "ResponseParameters": {
+                "gatewayresponse.header.Access-Control-Allow-Origin": "'*'",
+                "gatewayresponse.header.Access-Control-Allow-Headers": "'Content-Type'",
+                "gatewayresponse.header.Access-Control-Allow-Methods": "'GET,POST,OPTIONS'"
+              },
+              "ResponseType": "DEFAULT_4XX",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "GatewayResponseDefault5XX": {
+            "Type": "AWS::ApiGateway::GatewayResponse",
+            "Properties": {
+              "ResponseParameters": {
+                "gatewayresponse.header.Access-Control-Allow-Origin": "'*'",
+                "gatewayresponse.header.Access-Control-Allow-Headers": "'Content-Type'",
+                "gatewayresponse.header.Access-Control-Allow-Methods": "'GET,POST,OPTIONS'"
+              },
+              "ResponseType": "DEFAULT_5XX",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ResultsTable": {
+            "Type": "AWS::DynamoDB::Table",
+            "Properties": {
+              "TableName": "ai-levels-results",
+              "BillingMode": "PAY_PER_REQUEST",
+              "AttributeDefinitions": [
+                {
+                  "AttributeName": "PK",
+                  "AttributeType": "S"
+                },
+                {
+                  "AttributeName": "SK",
+                  "AttributeType": "S"
+                }
+              ],
+              "KeySchema": [
+                {
+                  "AttributeName": "PK",
+                  "KeyType": "HASH"
+                },
+                {
+                  "AttributeName": "SK",
+                  "KeyType": "RANGE"
+                }
+              ]
+            }
+          },
+          "ProgressTable": {
+            "Type": "AWS::DynamoDB::Table",
+            "Properties": {
+              "TableName": "ai-levels-progress",
+              "BillingMode": "PAY_PER_REQUEST",
+              "AttributeDefinitions": [
+                {
+                  "AttributeName": "PK",
+                  "AttributeType": "S"
+                },
+                {
+                  "AttributeName": "SK",
+                  "AttributeType": "S"
+                }
+              ],
+              "KeySchema": [
+                {
+                  "AttributeName": "PK",
+                  "KeyType": "HASH"
+                },
+                {
+                  "AttributeName": "SK",
+                  "KeyType": "RANGE"
+                }
+              ]
+            }
+          }
+        },
+        "Outputs": {
+          "ServerlessDeploymentBucketName": {
+            "Value": {
+              "Ref": "ServerlessDeploymentBucket"
+            },
+            "Export": {
+              "Name": "sls-ai-levels-backend-dev-ServerlessDeploymentBucketName"
+            }
+          },
+          "GenerateLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "GenerateLambdaVersionNQ2itjMoE9kzXGpvKMVNI7fZktrYIVBZjERMJfIQ"
+            },
+            "Export": {
+              "Name": "sls-ai-levels-backend-dev-GenerateLambdaFunctionQualifiedArn"
+            }
+          },
+          "GradeLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "GradeLambdaVersionY45OBpCJooO8CoIVbIOAM1FqNZNcUvUvtoTUIiOsk0"
+            },
+            "Export": {
+              "Name": "sls-ai-levels-backend-dev-GradeLambdaFunctionQualifiedArn"
+            }
+          },
+          "CompleteLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "CompleteLambdaVersionqTkpFaepzZsJpw6JAbptRZeOq3x47SHMvdF5Yd5q3P4"
+            },
+            "Export": {
+              "Name": "sls-ai-levels-backend-dev-CompleteLambdaFunctionQualifiedArn"
+            }
+          },
+          "ServerTimeLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "ServerTimeLambdaVersion3HRU71646hyfnH6hlEPvBW5PZdnE80siESERzvY"
+            },
+            "Export": {
+              "Name": "sls-ai-levels-backend-dev-ServerTimeLambdaFunctionQualifiedArn"
+            }
+          },
+          "StartQuestionLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "StartQuestionLambdaVersionAaDFdS1qrHfFBRtOICn0L7OpevghYOn05RtWQBtUH4"
+            },
+            "Export": {
+              "Name": "sls-ai-levels-backend-dev-StartQuestionLambdaFunctionQualifiedArn"
+            }
+          },
+          "GateLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "GateLambdaVersion8mHugV9SsJBOmbQpIIgCZyV4pxeWhK473mHw2I4STN0"
+            },
+            "Export": {
+              "Name": "sls-ai-levels-backend-dev-GateLambdaFunctionQualifiedArn"
+            }
+          },
+          "Lv2GenerateLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "Lv2GenerateLambdaVersion2rb2XFzZ7rv9sf9lmF939jjLXdovNFsiWQsGP121c"
+            },
+            "Export": {
+              "Name": "sls-ai-levels-backend-dev-Lv2GenerateLambdaFunctionQualifiedArn"
+            }
+          },
+          "Lv2GradeLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "Lv2GradeLambdaVersionb7gMyYsCwUQkFxoEaZrncky8ir4bJFz0S6eQ3kbnE"
+            },
+            "Export": {
+              "Name": "sls-ai-levels-backend-dev-Lv2GradeLambdaFunctionQualifiedArn"
+            }
+          },
+          "Lv2CompleteLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "Lv2CompleteLambdaVersionZCPA85JpOLTCkzsFNr0sV1DiIpZwHEa0UyoYw0FuVw"
+            },
+            "Export": {
+              "Name": "sls-ai-levels-backend-dev-Lv2CompleteLambdaFunctionQualifiedArn"
+            }
+          },
+          "Lv3GenerateLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "Lv3GenerateLambdaVersionswLTVKjTqNhi1FaKiezobAYbrDQiAUGJNxwGFlMAug"
+            },
+            "Export": {
+              "Name": "sls-ai-levels-backend-dev-Lv3GenerateLambdaFunctionQualifiedArn"
+            }
+          },
+          "Lv3GradeLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "Lv3GradeLambdaVersionUoc0ZJS58s2hVoPcZkzzAt5R3tHmIeMvOh0b3DQwlY"
+            },
+            "Export": {
+              "Name": "sls-ai-levels-backend-dev-Lv3GradeLambdaFunctionQualifiedArn"
+            }
+          },
+          "Lv3CompleteLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "Lv3CompleteLambdaVersionIvvL925sGyJkCP4xrvN4c3Jk2mc0alN3Ulw6ji7t9AQ"
+            },
+            "Export": {
+              "Name": "sls-ai-levels-backend-dev-Lv3CompleteLambdaFunctionQualifiedArn"
+            }
+          },
+          "Lv4GenerateLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "Lv4GenerateLambdaVersiong0MNsCE0ipUiucLnE1JmYNpSr43ihXy8etwujkU5k"
+            },
+            "Export": {
+              "Name": "sls-ai-levels-backend-dev-Lv4GenerateLambdaFunctionQualifiedArn"
+            }
+          },
+          "Lv4GradeLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "Lv4GradeLambdaVersionUNUnV1PwgzNo6SDmRU10l4w4LzOMH1oLYdJl2PCaw"
+            },
+            "Export": {
+              "Name": "sls-ai-levels-backend-dev-Lv4GradeLambdaFunctionQualifiedArn"
+            }
+          },
+          "Lv4CompleteLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "Lv4CompleteLambdaVersionRDBNANp29llvQIGPuybR6Y4U5VzgGnCuSOiB9lsMxk"
+            },
+            "Export": {
+              "Name": "sls-ai-levels-backend-dev-Lv4CompleteLambdaFunctionQualifiedArn"
+            }
+          },
+          "ServiceEndpoint": {
+            "Description": "URL of the service endpoint",
+            "Value": {
+              "Fn::Join": [
+                "",
+                [
+                  "https://",
+                  {
+                    "Ref": "ApiGatewayRestApi"
+                  },
+                  ".execute-api.",
+                  {
+                    "Ref": "AWS::Region"
+                  },
+                  ".",
+                  {
+                    "Ref": "AWS::URLSuffix"
+                  },
+                  "/dev"
+                ]
+              ]
+            },
+            "Export": {
+              "Name": "sls-ai-levels-backend-dev-ServiceEndpoint"
+            }
+          }
+        }
+      },
+      "coreCloudFormationTemplate": {
+        "AWSTemplateFormatVersion": "2010-09-09",
+        "Description": "The AWS CloudFormation template for this Serverless application",
+        "Resources": {
+          "ServerlessDeploymentBucket": {
+            "Type": "AWS::S3::Bucket",
+            "Properties": {
+              "BucketEncryption": {
+                "ServerSideEncryptionConfiguration": [
+                  {
+                    "ServerSideEncryptionByDefault": {
+                      "SSEAlgorithm": "AES256"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "ServerlessDeploymentBucketPolicy": {
+            "Type": "AWS::S3::BucketPolicy",
+            "Properties": {
+              "Bucket": {
+                "Ref": "ServerlessDeploymentBucket"
+              },
+              "PolicyDocument": {
+                "Statement": [
+                  {
+                    "Action": "s3:*",
+                    "Effect": "Deny",
+                    "Principal": "*",
+                    "Resource": [
+                      {
+                        "Fn::Join": [
+                          "",
+                          [
+                            "arn:",
+                            {
+                              "Ref": "AWS::Partition"
+                            },
+                            ":s3:::",
+                            {
+                              "Ref": "ServerlessDeploymentBucket"
+                            },
+                            "/*"
+                          ]
+                        ]
+                      },
+                      {
+                        "Fn::Join": [
+                          "",
+                          [
+                            "arn:",
+                            {
+                              "Ref": "AWS::Partition"
+                            },
+                            ":s3:::",
+                            {
+                              "Ref": "ServerlessDeploymentBucket"
+                            }
+                          ]
+                        ]
+                      }
+                    ],
+                    "Condition": {
+                      "Bool": {
+                        "aws:SecureTransport": false
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "Outputs": {
+          "ServerlessDeploymentBucketName": {
+            "Value": {
+              "Ref": "ServerlessDeploymentBucket"
+            }
+          }
+        }
+      },
+      "vpc": {}
+    },
+    "pluginsData": {},
+    "functions": {
+      "generate": {
+        "handler": "backend/handlers/generate_handler.handler",
+        "events": [
+          {
+            "http": {
+              "path": "lv1/generate",
+              "method": "post",
+              "cors": {
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "POST"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "allowCredentials": false
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "ai-levels-backend-dev-generate",
+        "package": {},
+        "memory": 1024,
+        "timeout": 60,
+        "runtime": "python3.12",
+        "vpc": {},
+        "versionLogicalId": "GenerateLambdaVersionNQ2itjMoE9kzXGpvKMVNI7fZktrYIVBZjERMJfIQ"
+      },
+      "grade": {
+        "handler": "backend/handlers/grade_handler.handler",
+        "events": [
+          {
+            "http": {
+              "path": "lv1/grade",
+              "method": "post",
+              "cors": {
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "POST"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "allowCredentials": false
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "ai-levels-backend-dev-grade",
+        "package": {},
+        "memory": 1024,
+        "timeout": 60,
+        "runtime": "python3.12",
+        "vpc": {},
+        "versionLogicalId": "GradeLambdaVersionY45OBpCJooO8CoIVbIOAM1FqNZNcUvUvtoTUIiOsk0"
+      },
+      "complete": {
+        "handler": "backend/handlers/complete_handler.handler",
+        "events": [
+          {
+            "http": {
+              "path": "lv1/complete",
+              "method": "post",
+              "cors": {
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "POST"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "allowCredentials": false
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "ai-levels-backend-dev-complete",
+        "package": {},
+        "memory": 1024,
+        "timeout": 60,
+        "runtime": "python3.12",
+        "vpc": {},
+        "versionLogicalId": "CompleteLambdaVersionqTkpFaepzZsJpw6JAbptRZeOq3x47SHMvdF5Yd5q3P4"
+      },
+      "serverTime": {
+        "handler": "backend/handlers/timer_handler.server_time_handler",
+        "events": [
+          {
+            "http": {
+              "path": "lv1/server-time",
+              "method": "get",
+              "cors": {
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "GET"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "allowCredentials": false
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "ai-levels-backend-dev-serverTime",
+        "package": {},
+        "memory": 1024,
+        "timeout": 60,
+        "runtime": "python3.12",
+        "vpc": {},
+        "versionLogicalId": "ServerTimeLambdaVersion3HRU71646hyfnH6hlEPvBW5PZdnE80siESERzvY"
+      },
+      "startQuestion": {
+        "handler": "backend/handlers/timer_handler.start_question_handler",
+        "events": [
+          {
+            "http": {
+              "path": "lv1/start-question",
+              "method": "post",
+              "cors": {
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "POST"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "allowCredentials": false
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "ai-levels-backend-dev-startQuestion",
+        "package": {},
+        "memory": 1024,
+        "timeout": 60,
+        "runtime": "python3.12",
+        "vpc": {},
+        "versionLogicalId": "StartQuestionLambdaVersionAaDFdS1qrHfFBRtOICn0L7OpevghYOn05RtWQBtUH4"
+      },
+      "gate": {
+        "handler": "backend/handlers/gate_handler.handler",
+        "events": [
+          {
+            "http": {
+              "path": "levels/status",
+              "method": "get",
+              "cors": {
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "GET"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "allowCredentials": false
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "ai-levels-backend-dev-gate",
+        "package": {},
+        "memory": 1024,
+        "timeout": 60,
+        "runtime": "python3.12",
+        "vpc": {},
+        "versionLogicalId": "GateLambdaVersion8mHugV9SsJBOmbQpIIgCZyV4pxeWhK473mHw2I4STN0"
+      },
+      "lv2Generate": {
+        "handler": "backend/handlers/lv2_generate_handler.handler",
+        "events": [
+          {
+            "http": {
+              "path": "lv2/generate",
+              "method": "post",
+              "cors": {
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "POST"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "allowCredentials": false
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "ai-levels-backend-dev-lv2Generate",
+        "package": {},
+        "memory": 1024,
+        "timeout": 60,
+        "runtime": "python3.12",
+        "vpc": {},
+        "versionLogicalId": "Lv2GenerateLambdaVersion2rb2XFzZ7rv9sf9lmF939jjLXdovNFsiWQsGP121c"
+      },
+      "lv2Grade": {
+        "handler": "backend/handlers/lv2_grade_handler.handler",
+        "events": [
+          {
+            "http": {
+              "path": "lv2/grade",
+              "method": "post",
+              "cors": {
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "POST"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "allowCredentials": false
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "ai-levels-backend-dev-lv2Grade",
+        "package": {},
+        "memory": 1024,
+        "timeout": 60,
+        "runtime": "python3.12",
+        "vpc": {},
+        "versionLogicalId": "Lv2GradeLambdaVersionb7gMyYsCwUQkFxoEaZrncky8ir4bJFz0S6eQ3kbnE"
+      },
+      "lv2Complete": {
+        "handler": "backend/handlers/lv2_complete_handler.handler",
+        "events": [
+          {
+            "http": {
+              "path": "lv2/complete",
+              "method": "post",
+              "cors": {
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "POST"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "allowCredentials": false
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "ai-levels-backend-dev-lv2Complete",
+        "package": {},
+        "memory": 1024,
+        "timeout": 60,
+        "runtime": "python3.12",
+        "vpc": {},
+        "versionLogicalId": "Lv2CompleteLambdaVersionZCPA85JpOLTCkzsFNr0sV1DiIpZwHEa0UyoYw0FuVw"
+      },
+      "lv3Generate": {
+        "handler": "backend/handlers/lv3_generate_handler.handler",
+        "events": [
+          {
+            "http": {
+              "path": "lv3/generate",
+              "method": "post",
+              "cors": {
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "POST"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "allowCredentials": false
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "ai-levels-backend-dev-lv3Generate",
+        "package": {},
+        "memory": 1024,
+        "timeout": 60,
+        "runtime": "python3.12",
+        "vpc": {},
+        "versionLogicalId": "Lv3GenerateLambdaVersionswLTVKjTqNhi1FaKiezobAYbrDQiAUGJNxwGFlMAug"
+      },
+      "lv3Grade": {
+        "handler": "backend/handlers/lv3_grade_handler.handler",
+        "events": [
+          {
+            "http": {
+              "path": "lv3/grade",
+              "method": "post",
+              "cors": {
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "POST"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "allowCredentials": false
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "ai-levels-backend-dev-lv3Grade",
+        "package": {},
+        "memory": 1024,
+        "timeout": 60,
+        "runtime": "python3.12",
+        "vpc": {},
+        "versionLogicalId": "Lv3GradeLambdaVersionUoc0ZJS58s2hVoPcZkzzAt5R3tHmIeMvOh0b3DQwlY"
+      },
+      "lv3Complete": {
+        "handler": "backend/handlers/lv3_complete_handler.handler",
+        "events": [
+          {
+            "http": {
+              "path": "lv3/complete",
+              "method": "post",
+              "cors": {
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "POST"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "allowCredentials": false
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "ai-levels-backend-dev-lv3Complete",
+        "package": {},
+        "memory": 1024,
+        "timeout": 60,
+        "runtime": "python3.12",
+        "vpc": {},
+        "versionLogicalId": "Lv3CompleteLambdaVersionIvvL925sGyJkCP4xrvN4c3Jk2mc0alN3Ulw6ji7t9AQ"
+      },
+      "lv4Generate": {
+        "handler": "backend/handlers/lv4_generate_handler.handler",
+        "events": [
+          {
+            "http": {
+              "path": "lv4/generate",
+              "method": "post",
+              "cors": {
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "POST"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "allowCredentials": false
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "ai-levels-backend-dev-lv4Generate",
+        "package": {},
+        "memory": 1024,
+        "timeout": 60,
+        "runtime": "python3.12",
+        "vpc": {},
+        "versionLogicalId": "Lv4GenerateLambdaVersiong0MNsCE0ipUiucLnE1JmYNpSr43ihXy8etwujkU5k"
+      },
+      "lv4Grade": {
+        "handler": "backend/handlers/lv4_grade_handler.handler",
+        "events": [
+          {
+            "http": {
+              "path": "lv4/grade",
+              "method": "post",
+              "cors": {
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "POST"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "allowCredentials": false
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "ai-levels-backend-dev-lv4Grade",
+        "package": {},
+        "memory": 1024,
+        "timeout": 60,
+        "runtime": "python3.12",
+        "vpc": {},
+        "versionLogicalId": "Lv4GradeLambdaVersionUNUnV1PwgzNo6SDmRU10l4w4LzOMH1oLYdJl2PCaw"
+      },
+      "lv4Complete": {
+        "handler": "backend/handlers/lv4_complete_handler.handler",
+        "events": [
+          {
+            "http": {
+              "path": "lv4/complete",
+              "method": "post",
+              "cors": {
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "POST"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "allowCredentials": false
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "ai-levels-backend-dev-lv4Complete",
+        "package": {},
+        "memory": 1024,
+        "timeout": 60,
+        "runtime": "python3.12",
+        "vpc": {},
+        "versionLogicalId": "Lv4CompleteLambdaVersionRDBNANp29llvQIGPuybR6Y4U5VzgGnCuSOiB9lsMxk"
+      }
+    },
+    "resources": {
+      "Resources": {
+        "GatewayResponseDefault4XX": {
+          "Type": "AWS::ApiGateway::GatewayResponse",
+          "Properties": {
+            "ResponseParameters": {
+              "gatewayresponse.header.Access-Control-Allow-Origin": "'*'",
+              "gatewayresponse.header.Access-Control-Allow-Headers": "'Content-Type'",
+              "gatewayresponse.header.Access-Control-Allow-Methods": "'GET,POST,OPTIONS'"
+            },
+            "ResponseType": "DEFAULT_4XX",
+            "RestApiId": {
+              "Ref": "ApiGatewayRestApi"
+            }
+          }
+        },
+        "GatewayResponseDefault5XX": {
+          "Type": "AWS::ApiGateway::GatewayResponse",
+          "Properties": {
+            "ResponseParameters": {
+              "gatewayresponse.header.Access-Control-Allow-Origin": "'*'",
+              "gatewayresponse.header.Access-Control-Allow-Headers": "'Content-Type'",
+              "gatewayresponse.header.Access-Control-Allow-Methods": "'GET,POST,OPTIONS'"
+            },
+            "ResponseType": "DEFAULT_5XX",
+            "RestApiId": {
+              "Ref": "ApiGatewayRestApi"
+            }
+          }
+        },
+        "ResultsTable": {
+          "Type": "AWS::DynamoDB::Table",
+          "Properties": {
+            "TableName": "ai-levels-results",
+            "BillingMode": "PAY_PER_REQUEST",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "PK",
+                "AttributeType": "S"
+              },
+              {
+                "AttributeName": "SK",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "PK",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "SK",
+                "KeyType": "RANGE"
+              }
+            ]
+          }
+        },
+        "ProgressTable": {
+          "Type": "AWS::DynamoDB::Table",
+          "Properties": {
+            "TableName": "ai-levels-progress",
+            "BillingMode": "PAY_PER_REQUEST",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "PK",
+                "AttributeType": "S"
+              },
+              {
+                "AttributeName": "SK",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "PK",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "SK",
+                "KeyType": "RANGE"
+              }
+            ]
+          }
+        }
+      },
+      "Outputs": {}
+    },
+    "configValidationMode": "warn",
+    "serviceFilename": "serverless.yml",
+    "initialServerlessConfig": {
+      "service": "ai-levels-backend",
+      "provider": {
+        "$ref": "$[\"service\"][\"provider\"]"
+      },
+      "functions": {
+        "$ref": "$[\"service\"][\"functions\"]"
+      },
+      "resources": {
+        "$ref": "$[\"service\"][\"resources\"]"
+      }
+    },
+    "layers": {},
+    "isDashboardMonitoringPreconfigured": false,
+    "artifact": "C:\\Users\\tennk\\LV1-main\\.serverless\\ai-levels-backend.zip"
+  },
+  "package": {
+    "artifactDirectoryName": "serverless/ai-levels-backend/dev/1773147329574-2026-03-10T12:55:29.574Z",
+    "artifact": "ai-levels-backend.zip"
+  }
+}
